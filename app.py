@@ -1,426 +1,368 @@
 """
-Mr. Goli Soda Finance - Flask Backend
-Ready to run! No setup needed!
+Mr. Goli Soda Finance - Flask App
+CLEAN VERSION
 """
 
 import os
-import io
-import csv
-import time
+from flask import Flask, render_template, jsonify, request, session
 from functools import wraps
-from flask import Flask, request, jsonify, session, send_from_directory, Response
-import db
+import json
+from db import cursor, init_db
 
-# Initialize Flask
-app = Flask(__name__, static_folder="static", static_url_path="")
+app = Flask(__name__, static_folder='static', static_url_path='')
 app.secret_key = "goli-soda-secret-key-2024"
-app.permanent_session_lifetime = 60 * 60 * 24 * 30
-
-# Login credentials
 PW = "SAFC@123"
-ADMIN_PW = None
 
-# Track login attempts
-_tries = {}
+# Initialize DB
+init_db()
 
-# SQL query
-ENTRY_SELECT = """
-  SELECT e.id, to_char(e.edate,'YYYY-MM-DD') AS date, e.franchise_id, f.name AS franchise,
-         f.state, e.category_id, c.name AS cat, e.descr AS "desc", e.amount::float8 AS amount,
-         e.invoice, e.bill, e.remarks
-  FROM entries e JOIN franchises f ON f.id=e.franchise_id JOIN categories c ON c.id=e.category_id
-"""
-
-
-# ============================================================================
-# DECORATORS
-# ============================================================================
-
+# ===== AUTH DECORATOR =====
 def login_required(f):
     @wraps(f)
-    def w(*a, **k):
-        if not session.get("auth"):
-            return jsonify(error="Not logged in"), 401
-        return f(*a, **k)
+    def decorated_function(*args, **kwargs):
+        if 'user' not in session:
+            return jsonify({"error": "Not logged in"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
-    return w
-
-
-# ============================================================================
-# AUTHENTICATION
-# ============================================================================
-
-@app.post("/api/login")
+# ===== AUTH ENDPOINTS =====
+@app.route('/api/login', methods=['POST'])
 def login():
-    """Login with password"""
-    ip = request.remote_addr or "x"
-    now = time.time()
-    attempt = _tries.get(ip, {"n": 0, "until": 0})
+    try:
+        data = request.json
+        password = data.get('password')
+        
+        if password == PW:
+            session['user'] = 'admin'
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Wrong password"}), 401
+    except Exception as e:
+        print(f"Login error: {e}")
+        return jsonify({"error": str(e)}), 500
 
-    if attempt["until"] > now:
-        return jsonify(error="Too many attempts"), 429
-
-    if (request.json or {}).get("password", "") == PW:
-        _tries.pop(ip, None)
-        session.permanent = True
-        session["auth"] = True
-        return jsonify(ok=True)
-
-    attempt["n"] += 1
-    if attempt["n"] >= 6:
-        attempt["until"] = now + 300
-        attempt["n"] = 0
-    _tries[ip] = attempt
-
-    return jsonify(error="Wrong password"), 401
-
-
-@app.post("/api/logout")
+@app.route('/api/logout', methods=['POST'])
 def logout():
-    """Logout"""
-    session.clear()
-    return jsonify(ok=True)
+    session.pop('user', None)
+    return jsonify({"success": True})
 
-
-@app.get("/api/me")
+@app.route('/api/me', methods=['GET'])
 def me():
-    """Check auth status"""
-    return jsonify(auth=bool(session.get("auth")))
+    if 'user' in session:
+        return jsonify({"user": session['user']})
+    return jsonify({"error": "Not logged in"}), 401
 
-
-# ============================================================================
-# CONFIG
-# ============================================================================
-
-@app.get("/api/config")
+# ===== CONFIG ENDPOINT =====
+@app.route('/api/config', methods=['GET'])
 @login_required
 def get_config():
-    """Get settings, franchises, categories"""
-    with db.cursor() as cur:
-        cur.execute("SELECT fee::float8 fee, budget_limit::float8 lim, warning::float8 warn FROM settings WHERE id=1")
-        s = cur.fetchone()
-        cur.execute("SELECT id, name, state FROM franchises ORDER BY id")
-        fr = cur.fetchall()
-        cur.execute("SELECT id, name FROM categories ORDER BY id")
-        cats = cur.fetchall()
+    try:
+        # Get settings
+        with cursor() as cur:
+            cur.execute("SELECT * FROM settings WHERE id=1")
+            settings = cur.fetchone()
+            if not settings:
+                settings = {"id": 1, "fee": 0, "budget_limit": 0, "warning": 0}
+        
+        # Get franchises
+        with cursor() as cur:
+            cur.execute("SELECT id, name, state FROM franchises ORDER BY id")
+            franchises = cur.fetchall()
+        
+        # Get categories
+        with cursor() as cur:
+            cur.execute("SELECT id, name FROM categories ORDER BY id")
+            categories = cur.fetchall()
+        
+        return jsonify({
+            "settings": settings,
+            "franchises": franchises,
+            "categories": categories
+        })
+    except Exception as e:
+        print(f"CONFIG ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
-    return jsonify(
-        fee=s["fee"] if s else 0,
-        limit=s["lim"] if s else 0,
-        warning=s["warn"] if s else 0,
-        franchises=fr,
-        categories=cats
-    )
-
-
-@app.put("/api/settings")
+# ===== SETTINGS ENDPOINTS =====
+@app.route('/api/settings', methods=['PUT'])
 @login_required
-def put_settings():
-    """Update settings"""
-    b = request.json or {}
-    with db.cursor(commit=True) as cur:
-        cur.execute(
-            "UPDATE settings SET fee=%s, budget_limit=%s, warning=%s WHERE id=1",
-            (b.get("fee") or 0, b.get("limit") or 0, b.get("warning") or 0)
-        )
-    return jsonify(ok=True)
+def update_settings():
+    try:
+        data = request.json
+        fee = data.get('fee', 0)
+        budget_limit = data.get('budget_limit', 0)
+        warning = data.get('warning', 0)
+        
+        with cursor(commit=True) as cur:
+            cur.execute("UPDATE settings SET fee=%s, budget_limit=%s, warning=%s WHERE id=1",
+                       (fee, budget_limit, warning))
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"UPDATE SETTINGS ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-
-# ============================================================================
-# FRANCHISES
-# ============================================================================
-
-@app.post("/api/franchises")
+# ===== FRANCHISE ENDPOINTS =====
+@app.route('/api/franchises', methods=['POST'])
 @login_required
 def add_franchise():
-    """Add franchise"""
-    b = request.json or {}
-    name = (b.get("name") or "").strip()
-    state = (b.get("state") or "").strip()
+    try:
+        data = request.json
+        name = data.get('name', '').strip()
+        state = data.get('state', '').strip()
+        
+        if not name or not state:
+            return jsonify({"error": "Name and state required"}), 400
+        
+        with cursor(commit=True) as cur:
+            cur.execute("INSERT INTO franchises (name, state) VALUES (%s, %s)",
+                       (name, state))
+            result = cur.fetchone()
+        
+        if result:
+            return jsonify(result), 201
+        else:
+            return jsonify({"success": True}), 201
+    
+    except Exception as e:
+        print(f"ADD FRANCHISE ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
-    if not name:
-        return jsonify(error="Name required"), 400
-
-    with db.cursor(commit=True) as cur:
-        cur.execute("SELECT 1 FROM franchises WHERE LOWER(name)=LOWER(%s)", (name,))
-        if cur.fetchone():
-            return jsonify(error="Already exists"), 409
-        cur.execute("INSERT INTO franchises(name, state) VALUES (%s, %s) RETURNING id", (name, state))
-        return jsonify(id=cur.fetchone()["id"])
-
-
-@app.put("/api/franchises/<int:fid>")
+@app.route('/api/franchises/<int:fid>', methods=['PUT'])
 @login_required
-def edit_franchise(fid):
-    """Update franchise"""
-    b = request.json or {}
-    name = (b.get("name") or "").strip()
-    state = (b.get("state") or "").strip()
+def update_franchise(fid):
+    try:
+        data = request.json
+        name = data.get('name', '').strip()
+        state = data.get('state', '').strip()
+        
+        with cursor(commit=True) as cur:
+            cur.execute("UPDATE franchises SET name=%s, state=%s WHERE id=%s",
+                       (name, state, fid))
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"UPDATE FRANCHISE ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-    if not name:
-        return jsonify(error="Name required"), 400
-
-    with db.cursor(commit=True) as cur:
-        cur.execute("SELECT 1 FROM franchises WHERE LOWER(name)=LOWER(%s) AND id<>%s", (name, fid))
-        if cur.fetchone():
-            return jsonify(error="Already exists"), 409
-        cur.execute("UPDATE franchises SET name=%s, state=%s WHERE id=%s", (name, state, fid))
-    return jsonify(ok=True)
-
-
-@app.delete("/api/franchises/<int:fid>")
+@app.route('/api/franchises/<int:fid>', methods=['DELETE'])
 @login_required
-def del_franchise(fid):
-    """Delete franchise"""
-    with db.cursor(commit=True) as cur:
-        cur.execute("SELECT COUNT(*) n FROM entries WHERE franchise_id=%s", (fid,))
-        n = cur.fetchone()["n"]
-        if n:
-            return jsonify(error=f"In use by {n} entries"), 409
-        cur.execute("DELETE FROM franchises WHERE id=%s", (fid,))
-    return jsonify(ok=True)
+def delete_franchise(fid):
+    try:
+        with cursor(commit=True) as cur:
+            cur.execute("DELETE FROM franchises WHERE id=%s", (fid,))
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"DELETE FRANCHISE ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-
-# ============================================================================
-# CATEGORIES
-# ============================================================================
-
-@app.post("/api/categories")
+# ===== CATEGORY ENDPOINTS =====
+@app.route('/api/categories', methods=['POST'])
 @login_required
 def add_category():
-    """Add category"""
-    name = ((request.json or {}).get("name") or "").strip()
-    if not name:
-        return jsonify(error="Name required"), 400
+    try:
+        data = request.json
+        name = data.get('name', '').strip()
+        
+        if not name:
+            return jsonify({"error": "Name required"}), 400
+        
+        with cursor(commit=True) as cur:
+            cur.execute("INSERT INTO categories (name) VALUES (%s)", (name,))
+            result = cur.fetchone()
+        
+        if result:
+            return jsonify(result), 201
+        else:
+            return jsonify({"success": True}), 201
+    
+    except Exception as e:
+        print(f"ADD CATEGORY ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
-    with db.cursor(commit=True) as cur:
-        cur.execute("SELECT 1 FROM categories WHERE LOWER(name)=LOWER(%s)", (name,))
-        if cur.fetchone():
-            return jsonify(error="Already exists"), 409
-        cur.execute("INSERT INTO categories(name) VALUES (%s) RETURNING id", (name,))
-        return jsonify(id=cur.fetchone()["id"])
-
-
-@app.put("/api/categories/<int:cid>")
+@app.route('/api/categories/<int:cid>', methods=['PUT'])
 @login_required
-def edit_category(cid):
-    """Update category"""
-    name = ((request.json or {}).get("name") or "").strip()
-    if not name:
-        return jsonify(error="Name required"), 400
+def update_category(cid):
+    try:
+        data = request.json
+        name = data.get('name', '').strip()
+        
+        with cursor(commit=True) as cur:
+            cur.execute("UPDATE categories SET name=%s WHERE id=%s", (name, cid))
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"UPDATE CATEGORY ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-    with db.cursor(commit=True) as cur:
-        cur.execute("SELECT 1 FROM categories WHERE LOWER(name)=LOWER(%s) AND id<>%s", (name, cid))
-        if cur.fetchone():
-            return jsonify(error="Already exists"), 409
-        cur.execute("UPDATE categories SET name=%s WHERE id=%s", (name, cid))
-    return jsonify(ok=True)
-
-
-@app.delete("/api/categories/<int:cid>")
+@app.route('/api/categories/<int:cid>', methods=['DELETE'])
 @login_required
-def del_category(cid):
-    """Delete category"""
-    with db.cursor(commit=True) as cur:
-        cur.execute("SELECT COUNT(*) n FROM categories")
-        if cur.fetchone()["n"] <= 1:
-            return jsonify(error="Keep at least one"), 409
-        cur.execute("SELECT COUNT(*) n FROM entries WHERE category_id=%s", (cid,))
-        n = cur.fetchone()["n"]
-        if n:
-            return jsonify(error=f"In use by {n} entries"), 409
-        cur.execute("DELETE FROM categories WHERE id=%s", (cid,))
-    return jsonify(ok=True)
+def delete_category(cid):
+    try:
+        with cursor(commit=True) as cur:
+            cur.execute("DELETE FROM categories WHERE id=%s", (cid,))
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"DELETE CATEGORY ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-
-# ============================================================================
-# ENTRIES
-# ============================================================================
-
-def _filters(args):
-    """Build WHERE clause"""
-    w, params = [], []
-    if args.get("from"):
-        w.append("e.edate >= %s")
-        params.append(args["from"])
-    if args.get("to"):
-        w.append("e.edate <= %s")
-        params.append(args["to"])
-    if args.get("franchise_id"):
-        w.append("e.franchise_id = %s")
-        params.append(int(args["franchise_id"]))
-    if args.get("bill"):
-        w.append("e.bill = %s")
-        params.append(args["bill"])
-    if args.get("q"):
-        like = "%" + args["q"].lower() + "%"
-        w.append(
-            "(LOWER(f.name) LIKE %s OR LOWER(c.name) LIKE %s OR LOWER(e.descr) LIKE %s OR LOWER(e.invoice) LIKE %s)")
-        params += [like, like, like, like]
-
-    where = (" WHERE " + " AND ".join(w)) if w else ""
-    return where, params
-
-
-@app.get("/api/entries")
+# ===== ENTRIES ENDPOINTS =====
+@app.route('/api/entries', methods=['GET'])
 @login_required
-def list_entries():
-    """Get entries"""
-    where, params = _filters(request.args)
-    with db.cursor() as cur:
-        cur.execute(ENTRY_SELECT + where + " ORDER BY e.edate DESC, e.id DESC", params)
-        return jsonify(cur.fetchall())
+def get_entries():
+    try:
+        with cursor() as cur:
+            cur.execute("SELECT * FROM entries_with_details ORDER BY date DESC")
+            entries = cur.fetchall()
+        
+        return jsonify(entries)
+    except Exception as e:
+        print(f"GET ENTRIES ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-
-@app.post("/api/entries")
+@app.route('/api/entries', methods=['POST'])
 @login_required
 def add_entry():
-    """Add entry"""
-    b = request.json or {}
-
-    if not b.get("franchise_id") or not b.get("category_id"):
-        return jsonify(error="Franchise and category required"), 400
-    if not (float(b.get("amount") or 0) > 0):
-        return jsonify(error="Amount must be greater than zero"), 400
-
-    with db.cursor(commit=True) as cur:
-        cur.execute(
-            "INSERT INTO entries(edate, franchise_id, category_id, descr, amount, invoice, bill, remarks) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
-            (b["date"], int(b["franchise_id"]), int(b["category_id"]), b.get("desc") or "",
-             float(b["amount"]), b.get("invoice") or "", b.get("bill") or "Yes", b.get("remarks") or "")
-        )
-        return jsonify(id=cur.fetchone()["id"])
-
-
-@app.put("/api/entries/<int:eid>")
-@login_required
-def edit_entry(eid):
-    """Update entry"""
-    b = request.json or {}
-
-    if not (float(b.get("amount") or 0) > 0):
-        return jsonify(error="Amount must be greater than zero"), 400
-
-    with db.cursor(commit=True) as cur:
-        cur.execute(
-            "UPDATE entries SET edate=%s, franchise_id=%s, category_id=%s, descr=%s, amount=%s, invoice=%s, bill=%s, remarks=%s WHERE id=%s",
-            (b["date"], int(b["franchise_id"]), int(b["category_id"]), b.get("desc") or "",
-             float(b["amount"]), b.get("invoice") or "", b.get("bill") or "Yes", b.get("remarks") or "", eid)
-        )
-    return jsonify(ok=True)
-
-
-@app.delete("/api/entries/<int:eid>")
-@login_required
-def del_entry(eid):
-    """Delete entry"""
-    with db.cursor(commit=True) as cur:
-        cur.execute("DELETE FROM entries WHERE id=%s", (eid,))
-    return jsonify(ok=True)
-
-
-# ============================================================================
-# BULK IMPORT
-# ============================================================================
-
-@app.post("/api/import")
-@login_required
-def bulk_import():
-    """Bulk import"""
-    b = request.json or {}
-    rows = b.get("entries") or []
-
-    if not rows:
-        return jsonify(error="No rows"), 400
-
-    if b.get("mode") == "replace" and ADMIN_PW and b.get("adminPassword") != ADMIN_PW:
-        return jsonify(error="Admin password required"), 403
-
-    with db.cursor(commit=True) as cur:
-        if b.get("mode") == "replace":
-            cur.execute("DELETE FROM entries")
-
-        for f in (b.get("newFranchises") or []):
-            name = (f.get("name") or "").strip()
-            if not name:
-                continue
+    try:
+        data = request.json
+        edate = data.get('edate')
+        franchise_id = data.get('franchise_id')
+        category_id = data.get('category_id')
+        descr = data.get('descr', '')
+        amount = data.get('amount')
+        invoice = data.get('invoice', '')
+        bill = data.get('bill', 'Yes')
+        remarks = data.get('remarks', '')
+        
+        with cursor(commit=True) as cur:
             cur.execute(
-                "INSERT INTO franchises(name, state) VALUES (%s, %s) ON CONFLICT (name) DO NOTHING",
-                (name, (f.get("state") or "").strip())
+                "INSERT INTO entries (edate, franchise_id, category_id, descr, amount, invoice, bill, remarks) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (edate, franchise_id, category_id, descr, amount, invoice, bill, remarks)
             )
+            result = cur.fetchone()
+        
+        if result:
+            return jsonify(result), 201
+        else:
+            return jsonify({"success": True}), 201
+    
+    except Exception as e:
+        print(f"ADD ENTRY ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
-        for c in (b.get("newCategories") or []):
-            name = (c if isinstance(c, str) else c.get("name", "")).strip()
-            if not name:
-                continue
-            cur.execute("INSERT INTO categories(name) VALUES (%s) ON CONFLICT (name) DO NOTHING", (name,))
-
-        cur.execute("SELECT id, name FROM franchises")
-        fr = {r["name"].lower(): r["id"] for r in cur.fetchall()}
-
-        cur.execute("SELECT id, name FROM categories")
-        ct = {r["name"].lower(): r["id"] for r in cur.fetchall()}
-
-        n = 0
-        for e in rows:
-            fid = fr.get((e.get("franchise") or "").lower())
-            cid = ct.get((e.get("cat") or "").lower())
-
-            if not fid or not cid or not (float(e.get("amount") or 0) > 0) or not e.get("date"):
-                continue
-
-            cur.execute(
-                "INSERT INTO entries(edate, franchise_id, category_id, descr, amount, invoice, bill, remarks) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (e["date"], fid, cid, e.get("desc") or "", float(e["amount"]),
-                 e.get("invoice") or "", e.get("bill") or "Yes", e.get("remarks") or "")
-            )
-            n += 1
-
-    return jsonify(inserted=n)
-
-
-# ============================================================================
-# EXPORT
-# ============================================================================
-
-@app.get("/api/export.csv")
+@app.route('/api/entries/<int:eid>', methods=['PUT'])
 @login_required
-def export_csv():
-    """Export CSV"""
-    with db.cursor() as cur:
-        cur.execute(ENTRY_SELECT + " ORDER BY e.edate, e.id")
-        rows = cur.fetchall()
+def update_entry(eid):
+    try:
+        data = request.json
+        edate = data.get('edate')
+        franchise_id = data.get('franchise_id')
+        category_id = data.get('category_id')
+        descr = data.get('descr', '')
+        amount = data.get('amount')
+        invoice = data.get('invoice', '')
+        bill = data.get('bill', 'Yes')
+        remarks = data.get('remarks', '')
+        
+        with cursor(commit=True) as cur:
+            cur.execute(
+                "UPDATE entries SET edate=%s, franchise_id=%s, category_id=%s, descr=%s, amount=%s, invoice=%s, bill=%s, remarks=%s WHERE id=%s",
+                (edate, franchise_id, category_id, descr, amount, invoice, bill, remarks, eid)
+            )
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"UPDATE ENTRY ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-    buf = io.StringIO()
-    wr = csv.writer(buf)
-    wr.writerow(["Date", "Franchise", "State", "Category", "Description", "Amount", "Invoice", "Bill", "Remarks"])
-    for r in rows:
-        wr.writerow([r["date"], r["franchise"], r["state"], r["cat"], r["desc"], r["amount"], r["invoice"], r["bill"],
-                     r["remarks"]])
+@app.route('/api/entries/<int:eid>', methods=['DELETE'])
+@login_required
+def delete_entry(eid):
+    try:
+        with cursor(commit=True) as cur:
+            cur.execute("DELETE FROM entries WHERE id=%s", (eid,))
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"DELETE ENTRY ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-    return Response(
-        buf.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=franchise_expenses.csv"}
-    )
+# ===== IMPORT/EXPORT ENDPOINTS =====
+@app.route('/api/import', methods=['POST'])
+@login_required
+def import_data():
+    try:
+        data = request.json
+        rows = data.get('rows', [])
+        clear = data.get('clear', False)
+        
+        if clear:
+            with cursor(commit=True) as cur:
+                cur.execute("DELETE FROM entries")
+        
+        with cursor(commit=True) as cur:
+            for row in rows:
+                cur.execute(
+                    "INSERT INTO entries (edate, franchise_id, category_id, descr, amount, invoice, bill, remarks) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                    (row.get('edate'), row.get('franchise_id'), row.get('category_id'),
+                     row.get('descr', ''), row.get('amount'), row.get('invoice', ''),
+                     row.get('bill', 'Yes'), row.get('remarks', ''))
+                )
+        
+        return jsonify({"success": True, "count": len(rows)})
+    except Exception as e:
+        print(f"IMPORT ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
+@app.route('/api/export.csv', methods=['GET'])
+@login_required
+def export_data():
+    try:
+        with cursor() as cur:
+            cur.execute("SELECT * FROM entries_with_details ORDER BY date DESC")
+            entries = cur.fetchall()
+        
+        # Build CSV
+        csv = "Date,Franchise,State,Category,Description,Amount,Invoice,Bill,Remarks\n"
+        for e in entries:
+            date = e.get('date', '')
+            franchise = e.get('franchise', '')
+            state = e.get('state', '')
+            cat = e.get('cat', '')
+            desc = e.get('desc', '')
+            amount = e.get('amount', '')
+            invoice = e.get('invoice', '')
+            bill = e.get('bill', '')
+            remarks = e.get('remarks', '')
+            csv += f'"{date}","{franchise}","{state}","{cat}","{desc}","{amount}","{invoice}","{bill}","{remarks}"\n'
+        
+        return csv, 200, {'Content-Disposition': 'attachment; filename=entries.csv'}
+    except Exception as e:
+        print(f"EXPORT ERROR: {e}")
+        return jsonify({"error": str(e)}), 500
 
-# ============================================================================
-# FRONTEND
-# ============================================================================
-
-@app.get("/")
+# ===== SERVE HTML =====
+@app.route('/')
 def index():
-    """Serve HTML"""
-    return send_from_directory(app.static_folder, "index.html")
+    return app.send_static_file('index.html')
 
+@app.route('/<path:path>')
+def serve_static(path):
+    if path != "" and path != "index.html":
+        return app.send_static_file(path)
+    return app.send_static_file('index.html')
 
-# ============================================================================
-# RUN
-# ============================================================================
-
-db.init_db()
-
-if __name__ == "__main__":
-    print("\n✅ Server starting...\n")
-    app.run(host="0.0.0.0", port=3000, debug=False)
+# ===== RUN =====
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 3000))
+    app.run(host='0.0.0.0', port=port, debug=False)
