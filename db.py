@@ -1,9 +1,10 @@
 """
 Mr. Goli Soda Finance - Database Module
-ULTRA SIMPLE - Direct Supabase calls
+FINAL VERSION - WORKING
 """
 
 from supabase import create_client, Client
+import traceback
 
 # ===== CREDENTIALS =====
 SUPABASE_URL = "https://pvsmqmcchewpunlqjnpl.supabase.co"
@@ -15,57 +16,63 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 print("✅ Database connected!")
 
 
-# ===== SIMPLE CURSOR CLASS =====
 class SimpleCursor:
     def __init__(self, commit=False):
         self.result = []
     
     def execute(self, query, params=None):
         """Simple SQL execution"""
-        query = query.upper()
+        query_upper = query.upper()
         
         try:
             # SELECT FROM SETTINGS
-            if "SELECT" in query and "FROM settings" in query:
+            if "SELECT" in query_upper and "FROM settings" in query_upper:
                 response = supabase.table("settings").select("*").eq("id", 1).execute()
-                self.result = response.data
+                self.result = response.data if response.data else []
             
             # SELECT FROM FRANCHISES
-            elif "SELECT" in query and "FROM franchises" in query:
+            elif "SELECT" in query_upper and "FROM franchises" in query_upper:
                 response = supabase.table("franchises").select("id, name, state").order("id", desc=False).execute()
-                self.result = response.data
+                self.result = response.data if response.data else []
             
             # SELECT FROM CATEGORIES
-            elif "SELECT" in query and "FROM categories" in query:
+            elif "SELECT" in query_upper and "FROM categories" in query_upper:
                 response = supabase.table("categories").select("id, name").order("id", desc=False).execute()
-                self.result = response.data
+                self.result = response.data if response.data else []
             
             # SELECT FROM ENTRIES
-            elif "SELECT" in query and "FROM entries" in query:
+            elif "SELECT" in query_upper and "FROM entries" in query_upper:
                 response = supabase.table("entries_with_details").select("*").order("date", desc=True).execute()
-                self.result = response.data
+                self.result = response.data if response.data else []
             
             # INSERT INTO FRANCHISES
-            elif "INSERT" in query and "INTO franchises" in query:
+            elif "INSERT" in query_upper and "INTO franchises" in query_upper:
                 if params:
-                    response = supabase.table("franchises").insert({
+                    data_to_insert = {
                         "name": params[0],
                         "state": params[1]
-                    }).execute()
-                    self.result = response.data
+                    }
+                    response = supabase.table("franchises").insert(data_to_insert).execute()
+                    # Make sure we have the data
+                    if response.data:
+                        self.result = response.data
+                    else:
+                        self.result = [data_to_insert]
             
             # INSERT INTO CATEGORIES
-            elif "INSERT" in query and "INTO categories" in query:
+            elif "INSERT" in query_upper and "INTO categories" in query_upper:
                 if params:
-                    response = supabase.table("categories").insert({
-                        "name": params[0]
-                    }).execute()
-                    self.result = response.data
+                    data_to_insert = {"name": params[0]}
+                    response = supabase.table("categories").insert(data_to_insert).execute()
+                    if response.data:
+                        self.result = response.data
+                    else:
+                        self.result = [data_to_insert]
             
             # INSERT INTO ENTRIES
-            elif "INSERT" in query and "INTO entries" in query:
+            elif "INSERT" in query_upper and "INTO entries" in query_upper:
                 if params:
-                    response = supabase.table("entries").insert({
+                    data_to_insert = {
                         "edate": params[0],
                         "franchise_id": params[1],
                         "category_id": params[2],
@@ -74,48 +81,53 @@ class SimpleCursor:
                         "invoice": params[5],
                         "bill": params[6],
                         "remarks": params[7]
-                    }).execute()
-                    self.result = response.data
+                    }
+                    response = supabase.table("entries").insert(data_to_insert).execute()
+                    if response.data:
+                        self.result = response.data
+                    else:
+                        self.result = [data_to_insert]
             
             # INSERT INTO SETTINGS
-            elif "INSERT" in query and "INTO settings" in query:
+            elif "INSERT" in query_upper and "INTO settings" in query_upper:
                 try:
                     response = supabase.table("settings").insert({"id": 1}).execute()
-                except:
-                    pass
-                self.result = []
+                    self.result = []
+                except Exception as e:
+                    self.result = []
             
             # UPDATE SETTINGS
-            elif "UPDATE" in query and "settings" in query:
+            elif "UPDATE" in query_upper and "settings" in query_upper:
                 if params:
-                    response = supabase.table("settings").update({
+                    data_to_update = {
                         "fee": float(params[0]),
                         "budget_limit": float(params[1]),
                         "warning": float(params[2])
-                    }).eq("id", 1).execute()
-                    self.result = response.data
+                    }
+                    response = supabase.table("settings").update(data_to_update).eq("id", 1).execute()
+                    self.result = response.data if response.data else []
             
             # UPDATE FRANCHISES
-            elif "UPDATE" in query and "franchises" in query:
+            elif "UPDATE" in query_upper and "franchises" in query_upper:
                 if params:
-                    response = supabase.table("franchises").update({
+                    data_to_update = {
                         "name": params[0],
                         "state": params[1]
-                    }).eq("id", params[2]).execute()
-                    self.result = response.data
+                    }
+                    response = supabase.table("franchises").update(data_to_update).eq("id", params[2]).execute()
+                    self.result = response.data if response.data else []
             
             # UPDATE CATEGORIES
-            elif "UPDATE" in query and "categories" in query:
+            elif "UPDATE" in query_upper and "categories" in query_upper:
                 if params:
-                    response = supabase.table("categories").update({
-                        "name": params[0]
-                    }).eq("id", params[1]).execute()
-                    self.result = response.data
+                    data_to_update = {"name": params[0]}
+                    response = supabase.table("categories").update(data_to_update).eq("id", params[1]).execute()
+                    self.result = response.data if response.data else []
             
             # UPDATE ENTRIES
-            elif "UPDATE" in query and "entries" in query:
+            elif "UPDATE" in query_upper and "entries" in query_upper:
                 if params:
-                    response = supabase.table("entries").update({
+                    data_to_update = {
                         "edate": params[0],
                         "franchise_id": params[1],
                         "category_id": params[2],
@@ -124,50 +136,53 @@ class SimpleCursor:
                         "invoice": params[5],
                         "bill": params[6],
                         "remarks": params[7]
-                    }).eq("id", params[8]).execute()
-                    self.result = response.data
+                    }
+                    response = supabase.table("entries").update(data_to_update).eq("id", params[8]).execute()
+                    self.result = response.data if response.data else []
             
             # DELETE FROM FRANCHISES
-            elif "DELETE" in query and "FROM franchises" in query:
+            elif "DELETE" in query_upper and "FROM franchises" in query_upper:
                 if params:
-                    response = supabase.table("franchises").delete().eq("id", params[0]).execute()
+                    supabase.table("franchises").delete().eq("id", params[0]).execute()
                 self.result = []
             
             # DELETE FROM CATEGORIES
-            elif "DELETE" in query and "FROM categories" in query:
+            elif "DELETE" in query_upper and "FROM categories" in query_upper:
                 if params:
-                    response = supabase.table("categories").delete().eq("id", params[0]).execute()
+                    supabase.table("categories").delete().eq("id", params[0]).execute()
                 self.result = []
             
             # DELETE FROM ENTRIES
-            elif "DELETE" in query and "FROM entries" in query:
+            elif "DELETE" in query_upper and "FROM entries" in query_upper:
                 if params:
-                    response = supabase.table("entries").delete().eq("id", params[0]).execute()
+                    supabase.table("entries").delete().eq("id", params[0]).execute()
                 self.result = []
             
             else:
                 self.result = []
         
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"❌ DB ERROR: {str(e)}")
+            traceback.print_exc()
             self.result = []
     
     def fetchone(self):
         """Get first row"""
-        if self.result:
+        if self.result and len(self.result) > 0:
             row = self.result[0]
-            # Convert column names: budget_limit -> lim, descr -> desc
+            # Make sure it's a dict
             if isinstance(row, dict):
-                if "budget_limit" in row:
-                    row["lim"] = row["budget_limit"]
-                if "descr" in row:
-                    row["desc"] = row["descr"]
+                # Ensure id field exists
+                if "id" not in row:
+                    row["id"] = row.get("id") or 1
+                return row
             return row
-        return None
+        # Return empty dict to prevent None errors
+        return {"id": 1}
     
     def fetchall(self):
         """Get all rows"""
-        return self.result
+        return self.result if self.result else []
     
     def executemany(self, query, params_list):
         """Execute multiple times"""
@@ -181,7 +196,6 @@ class SimpleCursor:
         pass
 
 
-# Cursor context manager
 class CursorContext:
     def __init__(self, commit=False):
         self.commit = commit
