@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: gac-finance
+    runtime: python
+    plan: starter            # paid (~$7/mo, always-on). Use "free" to trial (sleeps when idle).
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DATABASE_URL     # paste your Supabase connection string here (Render dashboard)
+        sync: false
+      - key: APP_PASSWORD     # team login password
+        value: SAFC@123
+      - key: ADMIN_PASSWORD   # required for "Replace all" imports
+        value: Begum@123
+      - key: SECRET_KEY       # random string for signing sessions
+        generateValue: true

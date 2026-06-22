@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Goli Soda — Franchise Finance</title>
+<link rel="icon" href="/logo.png">
+<script src="/vendor/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#0c2b2b;--petrol:#0f3d3e;--petrol2:#1b5e5f;--teal:#0ea5a4;
+    --paper:#f3f6f5;--card:#fff;--line:#e1ebea;--muted:#5d7372;
+    --green:#15803d;--green-bg:#dcfce7;--amber:#b45309;--amber-bg:#fef3c7;
+    --red:#b91c1c;--red-bg:#fee2e2;--inputbg:#fffaf0;
+    --shadow:0 1px 2px rgba(15,61,62,.06),0 8px 24px rgba(15,61,62,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  header{position:sticky;top:0;z-index:20;background:var(--petrol);color:#eafffe;padding:14px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 10px rgba(12,43,43,.18)}
+  .brand{font-weight:800;font-size:17px;letter-spacing:-.02em;line-height:1}
+  .logo{height:38px;border-radius:8px;flex:0 0 auto;background:#000}
+  .logo-lg{display:block;margin:0 auto 16px;height:88px;border-radius:14px;background:#000}
+  .brand small{display:block;font-weight:500;font-size:11px;opacity:.7;letter-spacing:.04em;margin-top:3px}
+  .status-dot{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;opacity:.85}
+  .status-dot i{width:8px;height:8px;border-radius:50%;background:#46e0c4;box-shadow:0 0 0 3px rgba(70,224,196,.25)}
+  .lo{background:transparent;border:1px solid rgba(255,255,255,.3);color:#eafffe;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}
+  .lo:hover{background:rgba(255,255,255,.1)}
+  nav{display:flex;gap:4px;background:var(--petrol2);padding:0 10px;position:sticky;top:54px;z-index:19;overflow-x:auto}
+  nav button{flex:0 0 auto;background:none;border:0;color:#cfeae9;padding:13px 15px;font-size:13.5px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+  nav button.on{color:#fff;border-bottom-color:var(--teal)}
+  main{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+  .greet{font-size:13px;color:var(--muted);margin:2px 0}
+  .h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .grid{display:grid;gap:14px}.kpis{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .tile{padding:15px 16px}
+  .tile .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+  .tile .val{font-size:24px;font-weight:800;margin-top:7px}.tile .hint{font-size:12px;color:var(--muted);margin-top:3px}
+  .tile.accent{background:linear-gradient(160deg,#103f40,#15514f);border-color:#0d3535;color:#eafffe}
+  .tile.accent .lbl{color:#9fd6d3}.tile.accent .hint{color:#9fd6d3}
+  .tile.warn .val{color:var(--red)}
+  .gauge-card{padding:18px;margin-top:14px}
+  .gauge-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+  .gauge-title{font-weight:800;font-size:15px}
+  .flag{font-size:12.5px;font-weight:800;padding:6px 12px;border-radius:999px}
+  .flag.g{background:var(--green-bg);color:var(--green)}.flag.a{background:var(--amber-bg);color:var(--amber)}
+  .flag.r{background:var(--red-bg);color:var(--red)}.flag.n{background:#eef2f2;color:var(--muted)}
+  .track{position:relative;height:32px;border-radius:9px;background:#eef3f2;margin:22px 0 8px;overflow:hidden}
+  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:9px 0 0 9px;transition:width .5s ease}
+  .fill.g{background:linear-gradient(90deg,#22c55e,#15803d)}.fill.a{background:linear-gradient(90deg,#f59e0b,#d97706)}.fill.r{background:linear-gradient(90deg,#ef4444,#b91c1c)}
+  .mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:#0c2b2b}
+  .mark span{position:absolute;top:-19px;transform:translateX(-50%);font-size:10.5px;font-weight:700;white-space:nowrap}
+  .gauge-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .sec-title{font-weight:800;font-size:14px;margin:22px 0 10px;display:flex;align-items:center;gap:8px}
+  .sec-title::before{content:"";width:4px;height:15px;border-radius:2px;background:var(--teal)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--line)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;background:#fafcfb;position:sticky;top:0}
+  td.r,th.r{text-align:right}tbody tr:last-child td{border-bottom:0}
+  tr.total td{font-weight:800;background:#f0f7f6;border-top:2px solid var(--line)}
+  .scroll{max-height:540px;overflow:auto}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#eef3f2;color:var(--muted)}
+  .chip{font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px;white-space:nowrap}
+  .chip.g{background:var(--green-bg);color:var(--green)}.chip.a{background:var(--amber-bg);color:var(--amber)}.chip.r{background:var(--red-bg);color:var(--red)}.chip.n{background:#eef2f2;color:var(--muted)}
+  form{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  @media(max-width:620px){form{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:6px}.field.wide{grid-column:1/-1}
+  label{font-size:12px;font-weight:700;color:var(--muted)}
+  input,select,textarea{font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--inputbg);color:var(--ink)}
+  input:focus,select:focus{outline:2px solid var(--teal);border-color:var(--teal)}
+  .actions{grid-column:1/-1;display:flex;gap:10px;margin-top:4px}
+  .btn{padding:12px 20px;border-radius:10px;border:0;font-weight:800;font-size:14px;cursor:pointer}
+  .btn.go{background:var(--petrol);color:#eafffe}.btn.go:hover{background:var(--petrol2)}
+  .btn.ghost{background:#eef2f2;color:var(--ink)}.btn.sm{padding:8px 13px;font-size:13px}
+  .lnk{color:var(--teal);font-weight:700;text-decoration:none;font-size:13px}
+  .del{background:none;border:0;color:var(--red);cursor:pointer;font-weight:700;font-size:12.5px}
+  .edit{background:none;border:0;color:var(--teal);cursor:pointer;font-weight:700;font-size:12.5px;margin-right:10px}
+  .empty{padding:34px 16px;text-align:center;color:var(--muted);font-size:13.5px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--petrol);color:#eafffe;padding:12px 20px;border-radius:10px;font-weight:600;font-size:13.5px;box-shadow:0 8px 24px rgba(12,43,43,.3);z-index:60;pointer-events:none;transition:.3s}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .mhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .note{font-size:12px;color:var(--muted);background:#f7fbfa;border:1px dashed var(--line);border-radius:10px;padding:11px 13px;margin-top:6px}
+  .frow{display:grid;grid-template-columns:1fr 130px 70px;gap:8px;align-items:center;margin-bottom:8px}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar input,.toolbar select{padding:9px 11px}
+  .grow{flex:1;min-width:150px}
+  .hidden{display:none!important}#catAddRow{display:flex}
+  .overlay{position:fixed;inset:0;background:rgba(12,43,43,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .overlay.show{display:flex}
+  .modal{background:var(--card);border-radius:14px;padding:22px;max-width:520px;width:100%;box-shadow:0 20px 50px rgba(12,43,43,.3);max-height:90vh;overflow:auto}
+  .imp-stat{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}
+  .imp-stat .b{flex:1;min-width:80px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:center}
+  .imp-stat .b .n{font-size:22px;font-weight:800}.imp-stat .b .l{font-size:11px;color:var(--muted);font-weight:700}
+  .imp-list{font-size:12.5px;color:var(--muted);background:var(--paper);border-radius:8px;padding:8px 10px;margin:6px 0;max-height:110px;overflow:auto}
+  .imp-warn .n{color:var(--amber)}.imp-ok .n{color:var(--green)}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+  .modal h3{margin:0 0 14px;font-size:17px}
+  .modal p{margin:0 0 18px;font-size:14.5px}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+  /* login */
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,#0f3d3e,#0c2b2b)}
+  .login{background:var(--card);border-radius:16px;padding:30px;max-width:360px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+  .login .lt{font-weight:800;font-size:20px;letter-spacing:-.02em}
+  .login .ls{color:var(--muted);font-size:13px;margin:4px 0 20px}
+  .login input{width:100%;margin-bottom:12px}
+  .login button{width:100%}
+  .login .err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+</style>
+</head>
+<body>
+<div id="root"><div class="empty" style="padding:60px">Loading…</div></div>
+<div class="toast" id="toast"></div>
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const INR=n=>"₹"+Math.round(n||0).toLocaleString("en-IN");
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const STATE_ORDER=["TN","AP","KA","MH","CH","GJ"];
+const flagOf=(sp,w,l)=>sp<=0?"n":sp>l?"r":sp>=w?"a":"g";
+const flagWord={g:"Within",a:"Watch",r:"Over",n:"—"};
+
+let config={fee:0,limit:0,warning:0,franchises:[],categories:[]};
+let entries=[],tab="dash",fwSearch="",filt={month:"",q:"",bill:""};
+
+async function api(method,url,body){
+  const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  if(r.status===401){showLogin();throw new Error('auth');}
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||'Something went wrong');
+  return d;
+}
+async function loadConfig(){config=await api('GET','/api/config');}
+async function loadEntries(){entries=await api('GET','/api/entries');}
+
+/* ---------- boot ---------- */
+(async function boot(){
+  try{const me=await api('GET','/api/me');if(me.auth){await loadConfig();await loadEntries();renderApp();}else showLogin();}
+  catch(e){showLogin();}
+})();
+
+function showLogin(){
+  $("#root").innerHTML=`<div class="login-wrap"><div class="login">
+    <img src="/logo.png" alt="Mr Goli Soda" class="logo-lg">
+    <div class="lt">Mr. Goli Soda</div><div class="ls">Franchise Finance — sign in</div>
+    <input id="pw" type="password" placeholder="Team password" autocomplete="current-password">
+    <button class="btn go" id="loginBtn">Sign in</button>
+    <div class="err" id="loginErr"></div></div></div>`;
+  const go=async()=>{$("#loginErr").textContent="";
+    try{await api('POST','/api/login',{password:$("#pw").value});await loadConfig();await loadEntries();renderApp();}
+    catch(e){$("#loginErr").textContent=e.message;}};
+  $("#loginBtn").onclick=go;
+  $("#pw").onkeydown=e=>{if(e.key==="Enter")go();};
+  $("#pw").focus();
+}
+
+function renderApp(){
+  $("#root").innerHTML=`
+  <header><img src="/logo.png" alt="Mr Goli Soda" class="logo"><div class="brand">Mr. Goli Soda<small>FRANCHISE EXPENSE TRACKER</small></div>
+    <div class="status-dot"><i></i><span>Live · shared</span></div>
+    <button class="lo" id="logoutBtn">Log out</button></header>
+  <nav id="nav">
+    <button data-tab="dash">Dashboard</button>
+    <button data-tab="entry">Daily Entry</button>
+    <button data-tab="fw">Franchise-wise</button>
+    <button data-tab="sw">State-wise</button>
+    <button data-tab="masters">Masters</button>
+  </nav><main id="app"></main>`;
+  $("#logoutBtn").onclick=async()=>{await api('POST','/api/logout');showLogin();};
+  document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();});
+  render();
+}
+
+/* ---------- calculations ---------- */
+const frById=id=>config.franchises.find(f=>f.id===id);
+function statesList(){
+  const m={};config.franchises.forEach(f=>m[f.state]=(m[f.state]||0)+1);
+  const order=[...STATE_ORDER.filter(s=>m[s]!=null),...Object.keys(m).filter(s=>!STATE_ORDER.includes(s))];
+  return order.map(s=>({name:s,count:m[s]}));
+}
+const frSpent=id=>entries.filter(e=>e.franchise_id===id).reduce((s,e)=>s+ +e.amount,0);
+const stSpent=st=>entries.filter(e=>e.state===st).reduce((s,e)=>s+ +e.amount,0);
+function totals(){
+  const totalFr=config.franchises.length,spent=entries.reduce((s,e)=>s+ +e.amount,0);
+  const budget=totalFr*config.limit,warn=totalFr*config.warning;
+  return {totalFr,spent,budget,warn,bal:budget-spent,flag:flagOf(spent,warn,budget)};
+}
+const greeting=()=>{const h=new Date().getHours();return h<12?"Good morning":h<17?"Good afternoon":"Good evening";};
+
+function render(){
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===tab));
+  $("#app").innerHTML=tab==="dash"?dash():tab==="entry"?entry():tab==="fw"?fwView():tab==="sw"?swView():masters();
+  bind();
+}
+
+function gauge(spent,warn,limit,flag){
+  const pct=Math.min(100,limit?spent/limit*100:0),wp=limit?warn/limit*100:0,over=spent>limit;
+  return `<div class="track"><div class="fill ${flag}" style="width:${pct}%"></div>
+    <div class="mark" style="left:${wp}%"><span>${INR(warn)}</span></div>
+    <div class="mark" style="left:100%"><span style="transform:translateX(-100%)">${INR(limit)}</span></div></div>
+    <div class="gauge-foot"><span>₹0</span><span class="num">now ${INR(spent)}${over?' · over by '+INR(spent-limit):''}</span></div>`;
+}
+
+function dash(){
+  const t=totals();
+  const over=config.franchises.filter(f=>flagOf(frSpent(f.id),config.warning,config.limit)==="r").length;
+  const pending=entries.filter(e=>e.bill==="No").length;
+  let srows="";
+  statesList().forEach(s=>{const sp=stSpent(s.name),bud=s.count*config.limit,wn=s.count*config.warning,fl=flagOf(sp,wn,bud);
+    srows+=`<tr><td>${s.name}</td><td class="r num">${s.count}</td><td class="r num">${INR(sp)}</td><td class="r num">${INR(bud)}</td><td class="r num">${bud?(sp/bud*100).toFixed(0):0}%</td><td><span class="chip ${fl}">${flagWord[fl]}</span></td></tr>`;});
+  return `
+  <div class="greet">${greeting()}</div><h1 class="h1">Overall</h1>
+  <p class="sub">${t.totalFr} franchises · ${statesList().length} states · ${entries.length} entries</p>
+  <div class="grid kpis">
+    <div class="card tile"><div class="lbl">Franchises</div><div class="val num">${t.totalFr}</div><div class="hint">${statesList().length} states</div></div>
+    <div class="card tile accent"><div class="lbl">Total Spent</div><div class="val num">${INR(t.spent)}</div><div class="hint">all franchises</div></div>
+    <div class="card tile"><div class="lbl">Total Budget</div><div class="val num">${INR(t.budget)}</div><div class="hint">${t.totalFr} × ${INR(config.limit)}</div></div>
+    <div class="card tile ${over?'warn':''}"><div class="lbl">Red Flags</div><div class="val num">${over}</div><div class="hint">${pending} bills pending</div></div>
+  </div>
+  <div class="card gauge-card"><div class="gauge-head"><div class="gauge-title">Overall spend vs total budget</div><div class="flag ${t.flag}">${flagWord[t.flag]} budget</div></div>${gauge(t.spent,t.warn,t.budget,t.flag)}</div>
+  <div class="sec-title">State-wise</div>
+  <div class="card"><table><thead><tr><th>State</th><th class="r">Franchises</th><th class="r">Spent</th><th class="r">Budget</th><th class="r">Used</th><th>Status</th></tr></thead>
+  <tbody>${srows}<tr class="total"><td>Total</td><td class="r num">${t.totalFr}</td><td class="r num">${INR(t.spent)}</td><td class="r num">${INR(t.budget)}</td><td class="r num">${t.budget?(t.spent/t.budget*100).toFixed(0):0}%</td><td></td></tr></tbody></table></div>
+  <div class="sec-title">Recent entries</div>${entryRows(entries.slice(0,5),false)}`;
+}
+
+function entry(){
+  const frOpts=config.franchises.map(f=>`<option value="${f.id}">${esc(f.name)} — ${f.state}</option>`).join("");
+  const catOpts=config.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  return `
+  <h1 class="h1">Daily entry</h1><p class="sub">Record an expense against a franchise.</p>
+  <div class="card" style="padding:14px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div style="flex:1;min-width:180px"><b style="font-size:14px">Bulk upload</b><div style="font-size:12px;color:var(--muted)">Import many expenses from an Excel / CSV file instead of typing.</div></div>
+    <button class="btn ghost sm" id="tmplBtn">Download template</button>
+    <button class="btn go sm" id="importBtn">Import Excel / CSV</button>
+    <input type="file" id="importFile" accept=".xlsx,.xls,.csv" class="hidden">
+  </div>
+  <div class="card" style="padding:18px"><form id="entryForm">
+    <div class="field"><label>Date</label><input type="date" name="date" value="${new Date().toISOString().slice(0,10)}" required></div>
+    <div class="field"><label>Franchise</label><select name="franchise_id" required>${frOpts}</select></div>
+    <div class="field"><label>Category</label>
+      <select name="category_id" id="catSelect" required>${catOpts}<option value="__add">+ Add new category…</option></select>
+      <div id="catAddRow" class="hidden" style="gap:8px;margin-top:8px"><input id="newCat" placeholder="New category name" style="flex:1"><button type="button" class="btn go sm" id="addCatBtn">Add</button></div>
+    </div>
+    <div class="field"><label>Amount (₹)</label><input type="number" name="amount" min="0" step="1" placeholder="0" required></div>
+    <div class="field wide"><label>Description</label><input name="desc" placeholder="e.g. Store launch event"></div>
+    <div class="field"><label>Invoice no.</label><input name="invoice" placeholder="INV-000"></div>
+    <div class="field"><label>Bill attached</label><select name="bill"><option>Yes</option><option>No</option></select></div>
+    <div class="field wide"><label>Remarks</label><input name="remarks" placeholder="optional"></div>
+    <div class="actions"><button type="submit" class="btn go">Save entry</button><button type="reset" class="btn ghost">Clear</button></div>
+  </form></div>
+  <div class="sec-title">Entries</div>
+  <div class="toolbar">
+    <input type="month" id="fMonth" value="${filt.month}">
+    <input class="grow" id="fQ" placeholder="Search franchise, category, description" value="${esc(filt.q)}">
+    <select id="fBill"><option value="">All bills</option><option value="Yes"${filt.bill==="Yes"?" selected":""}>Bill: Yes</option><option value="No"${filt.bill==="No"?" selected":""}>Bill: No (pending)</option></select>
+    <a class="btn ghost sm" href="/api/export.csv">Export CSV</a>
+  </div>
+  ${entryRows(filtered(),true)}`;
+}
+function filtered(){
+  return entries.filter(e=>{
+    if(filt.month&&!(e.date||"").startsWith(filt.month))return false;
+    if(filt.bill&&e.bill!==filt.bill)return false;
+    if(filt.q){const q=filt.q.toLowerCase();
+      if(!((e.franchise||"").toLowerCase().includes(q)||(e.cat||"").toLowerCase().includes(q)||(e.desc||"").toLowerCase().includes(q)||(e.invoice||"").toLowerCase().includes(q)))return false;}
+    return true;
+  });
+}
+function entryRows(list,actions){
+  if(!list.length)return `<div class="card"><div class="empty">No entries${actions?" match the filter":" yet"}.</div></div>`;
+  return `<div class="card scroll"><table><thead><tr><th>Date</th><th>Franchise</th><th>State</th><th>Category</th><th class="r">Amount</th><th>Bill</th>${actions?'<th></th>':''}</tr></thead><tbody>
+  ${list.map(e=>`<tr><td class="num">${e.date||""}</td><td>${esc(e.franchise)}</td><td><span class="pill">${e.state||"—"}</span></td><td>${esc(e.cat)}</td><td class="r num">${INR(e.amount)}</td><td>${e.bill==="No"?'<span class="chip a">pending</span>':"Yes"}</td>${actions?`<td class="r"><button class="edit" data-edit="${e.id}">Edit</button><button class="del" data-del="${e.id}">Delete</button></td>`:''}</tr>`).join("")}
+  </tbody></table></div>`;
+}
+
+function fwView(){
+  const q=fwSearch.toLowerCase();let rows="",tSpent=0;
+  config.franchises.filter(f=>!q||f.name.toLowerCase().includes(q)||f.state.toLowerCase().includes(q)).forEach((f,i)=>{
+    const sp=frSpent(f.id);tSpent+=sp;const fl=flagOf(sp,config.warning,config.limit);
+    rows+=`<tr><td class="num">${i+1}</td><td>${esc(f.name)}</td><td><span class="pill">${f.state}</span></td><td class="r num">${INR(sp)}</td><td class="r num">${INR(config.limit)}</td><td class="r num">${config.limit?(sp/config.limit*100).toFixed(0):0}%</td><td><span class="chip ${fl}">${flagWord[fl]}</span></td></tr>`;});
+  if(!rows)rows=`<tr><td colspan="7" class="empty">No franchises match “${esc(fwSearch)}”.</td></tr>`;
+  const totBud=config.franchises.length*config.limit;
+  return `<h1 class="h1">Franchise-wise</h1><p class="sub">Spend and budget status for each franchise.</p>
+  <div class="toolbar"><input class="grow" id="fwSearch" placeholder="Search franchise or state" value="${esc(fwSearch)}"></div>
+  <div class="card scroll"><table><thead><tr><th>#</th><th>Franchise</th><th>State</th><th class="r">Spent</th><th class="r">Budget</th><th class="r">Used</th><th>Status</th></tr></thead>
+  <tbody>${rows}<tr class="total"><td></td><td>Total</td><td></td><td class="r num">${INR(tSpent)}</td><td class="r num">${INR(totBud)}</td><td class="r num">${totBud?(tSpent/totBud*100).toFixed(0):0}%</td><td></td></tr></tbody></table></div>`;
+}
+
+function swView(){
+  let rows="",tSpent=0,tFr=0;
+  statesList().forEach(s=>{const sp=stSpent(s.name),bud=s.count*config.limit,wn=s.count*config.warning,fl=flagOf(sp,wn,bud);tSpent+=sp;tFr+=s.count;
+    rows+=`<tr><td>${s.name}</td><td class="r num">${s.count}</td><td class="r num">${INR(sp)}</td><td class="r num">${INR(bud)}</td><td class="r num">${INR(bud-sp)}</td><td class="r num">${bud?(sp/bud*100).toFixed(0):0}%</td><td><span class="chip ${fl}">${flagWord[fl]}</span></td></tr>`;});
+  const totBud=tFr*config.limit;
+  return `<h1 class="h1">State-wise</h1><p class="sub">Each state rolled up from its franchises. Budget = franchises × ${INR(config.limit)}.</p>
+  <div class="card scroll"><table><thead><tr><th>State</th><th class="r">Franchises</th><th class="r">Spent</th><th class="r">Budget</th><th class="r">Balance</th><th class="r">Used</th><th>Status</th></tr></thead>
+  <tbody>${rows}<tr class="total"><td>Total</td><td class="r num">${tFr}</td><td class="r num">${INR(tSpent)}</td><td class="r num">${INR(totBud)}</td><td class="r num">${INR(totBud-tSpent)}</td><td class="r num">${totBud?(tSpent/totBud*100).toFixed(0):0}%</td><td></td></tr></tbody></table></div>`;
+}
+
+function masters(){
+  const stOpts=f=>STATE_ORDER.concat(config.franchises.map(x=>x.state).filter(s=>!STATE_ORDER.includes(s))).filter((v,i,a)=>a.indexOf(v)===i).map(s=>`<option ${s===f.state?"selected":""}>${s}</option>`).join("");
+  return `<div class="mhead"><h1 class="h1" style="margin:0">Masters</h1><button class="btn go" id="saveBudget">Save budget</button></div>
+  <p class="sub">Budget rule, categories, and the franchise list. Changes save to the shared database.</p>
+  <div class="sec-title">Budget rule (per franchise)</div>
+  <div class="card" style="padding:16px"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px" id="budget">
+    <div class="field"><label>Franchise fee (₹)</label><input type="number" name="fee" value="${config.fee}"></div>
+    <div class="field"><label>Budget — limit (₹)</label><input type="number" name="limit" value="${config.limit}"></div>
+    <div class="field"><label>Warning (₹)</label><input type="number" name="warning" value="${config.warning}"></div>
+  </div><p class="note">Flags: spend ≥ warning = yellow, spend &gt; limit = red. State and overall budgets scale by franchise count automatically.</p></div>
+  <div class="sec-title">Categories (${config.categories.length})</div>
+  <div class="card" style="padding:16px"><div id="catlist">
+    ${config.categories.map(c=>`<div class="frow" style="grid-template-columns:1fr 80px auto" data-cat="${c.id}">
+      <input data-corig="${esc(c.name)}" value="${esc(c.name)}">
+      <span style="font-size:12px;color:var(--muted);align-self:center">${entries.filter(e=>e.category_id===c.id).length} used</span>
+      <button class="del" data-delcat="${c.id}">Remove</button></div>`).join("")}</div>
+    <div class="frow" style="grid-template-columns:1fr auto;margin-top:10px"><input id="newCatM" placeholder="Add a category"><button class="btn ghost sm" id="addCatM">+ Add</button></div>
+    <p class="note">Renaming updates everywhere automatically. Remove is blocked while a category is in use.</p></div>
+  <div class="sec-title">Franchises (${config.franchises.length})</div>
+  <div class="card" style="padding:16px">
+    <div class="frow" style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase"><span>Franchise name</span><span>State</span><span></span></div>
+    <div id="frlist">${config.franchises.map(f=>`<div class="frow" data-fr="${f.id}">
+      <input data-k="name" data-orig="${esc(f.name)}" value="${esc(f.name)}">
+      <select data-k="state">${stOpts(f)}</select>
+      <button class="del" data-delfr="${f.id}">Remove</button></div>`).join("")}</div>
+    <button class="btn ghost sm" id="addFr" style="margin-top:8px">+ Add franchise</button></div>`;
+}
+
+/* ---------- bind ---------- */
+function bind(){
+  if(tab==="entry"){
+    const f=$("#entryForm"),sel=$("#catSelect");
+    $("#tmplBtn").onclick=downloadTemplate;
+    $("#importBtn").onclick=()=>$("#importFile").click();
+    $("#importFile").onchange=handleImportFile;
+    sel.onchange=()=>{if(sel.value==="__add"){sel.value=config.categories[0]?String(config.categories[0].id):"";$("#catAddRow").classList.remove("hidden");$("#newCat").focus();}};
+    $("#addCatBtn").onclick=async()=>{const v=$("#newCat").value.trim();if(!v){toast("Type a category name");return;}
+      try{const r=await api('POST','/api/categories',{name:v});await loadConfig();render();
+        const ns=$("#catSelect");if(ns)ns.value=String(r.id);toast("Category added");}catch(e){toast(e.message);}};
+    f.onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(f).entries());
+      if(d.category_id==="__add"){toast("Choose or add a category");return;}
+      if(!(+d.amount>0)){toast("Enter an amount greater than zero");return;}
+      try{await api('POST','/api/entries',d);await loadEntries();render();toast("Entry saved");}catch(e){toast(e.message);}};
+    document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEdit(+b.dataset.edit));
+    document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
+      if(!(await ask("Delete this entry?")))return;
+      try{await api('DELETE','/api/entries/'+b.dataset.del);await loadEntries();render();toast("Entry deleted");}catch(e){toast(e.message);}});
+    $("#fMonth").onchange=e=>{filt.month=e.target.value;render();};
+    keepFocus("#fQ",v=>{filt.q=v;});
+    $("#fBill").onchange=e=>{filt.bill=e.target.value;render();};
+  }
+  if(tab==="fw")keepFocus("#fwSearch",v=>{fwSearch=v;});
+  if(tab==="masters"){
+    $("#saveBudget").onclick=async()=>{const g=id=>+document.querySelector(`#budget [name=${id}]`).value||0;
+      try{await api('PUT','/api/settings',{fee:g('fee'),limit:g('limit'),warning:g('warning')});await loadConfig();render();toast("Budget saved");}catch(e){toast(e.message);}};
+    // categories
+    document.querySelectorAll("[data-cat]").forEach(row=>{const id=+row.dataset.cat,inp=row.querySelector("input");
+      inp.onchange=async()=>{const orig=inp.dataset.corig,v=inp.value.trim();if(v===orig)return;if(!v){inp.value=orig;toast("Name can't be empty");return;}
+        try{await api('PUT','/api/categories/'+id,{name:v});await loadConfig();await loadEntries();render();toast("Category renamed");}catch(e){inp.value=orig;toast(e.message);}};});
+    document.querySelectorAll("[data-delcat]").forEach(b=>b.onclick=async()=>{
+      try{await api('DELETE','/api/categories/'+b.dataset.delcat);await loadConfig();render();toast("Category removed");}catch(e){toast(e.message);}});
+    $("#addCatM").onclick=async()=>{const v=$("#newCatM").value.trim();if(!v){toast("Type a category name");return;}
+      try{await api('POST','/api/categories',{name:v});await loadConfig();render();toast("Category added");}catch(e){toast(e.message);}};
+    // franchises
+    $("#addFr").onclick=async()=>{let n="New franchise",k=2;while(config.franchises.some(f=>f.name.toLowerCase()===n.toLowerCase()))n="New franchise "+(k++);
+      try{await api('POST','/api/franchises',{name:n,state:STATE_ORDER[0]});await loadConfig();render();}catch(e){toast(e.message);}};
+    document.querySelectorAll("[data-delfr]").forEach(b=>b.onclick=async()=>{
+      try{await api('DELETE','/api/franchises/'+b.dataset.delfr);await loadConfig();render();toast("Franchise removed");}catch(e){toast(e.message);}});
+    document.querySelectorAll("[data-fr]").forEach(row=>{const id=+row.dataset.fr,nm=row.querySelector('[data-k="name"]'),st=row.querySelector('[data-k="state"]');
+      const cur=()=>config.franchises.find(f=>f.id===id);
+      nm.onchange=async()=>{const orig=nm.dataset.orig,v=nm.value.trim();if(v===orig)return;if(!v){nm.value=orig;toast("Name can't be empty");return;}
+        try{await api('PUT','/api/franchises/'+id,{name:v,state:cur().state});await loadConfig();await loadEntries();render();toast("Franchise renamed");}catch(e){nm.value=orig;toast(e.message);}};
+      st.onchange=async()=>{try{await api('PUT','/api/franchises/'+id,{name:cur().name,state:st.value});await loadConfig();await loadEntries();render();}catch(e){toast(e.message);}};});
+  }
+}
+function keepFocus(sel,setter){const el=$(sel);if(!el)return;el.oninput=()=>{const c=el.selectionStart;setter(el.value);render();const n=$(sel);if(n){n.focus();try{n.setSelectionRange(c,c);}catch(e){}}};}
+
+/* ---------- edit entry modal ---------- */
+function openEdit(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  const frOpts=config.franchises.map(f=>`<option value="${f.id}"${f.id===e.franchise_id?" selected":""}>${esc(f.name)} — ${f.state}</option>`).join("");
+  const catOpts=config.categories.map(c=>`<option value="${c.id}"${c.id===e.category_id?" selected":""}>${esc(c.name)}</option>`).join("");
+  $("#modal").innerHTML=`<h3>Edit entry</h3><form id="editForm">
+    <div class="field"><label>Date</label><input type="date" name="date" value="${e.date}" required></div>
+    <div class="field"><label>Franchise</label><select name="franchise_id">${frOpts}</select></div>
+    <div class="field"><label>Category</label><select name="category_id">${catOpts}</select></div>
+    <div class="field"><label>Amount (₹)</label><input type="number" name="amount" min="0" value="${e.amount}" required></div>
+    <div class="field wide"><label>Description</label><input name="desc" value="${esc(e.desc)}"></div>
+    <div class="field"><label>Invoice no.</label><input name="invoice" value="${esc(e.invoice)}"></div>
+    <div class="field"><label>Bill attached</label><select name="bill"><option${e.bill==="Yes"?" selected":""}>Yes</option><option${e.bill==="No"?" selected":""}>No</option></select></div>
+    <div class="field wide"><label>Remarks</label><input name="remarks" value="${esc(e.remarks)}"></div>
+    <div class="actions" style="justify-content:flex-end"><button type="button" class="btn ghost" id="editCancel">Cancel</button><button type="submit" class="btn go">Save changes</button></div>
+  </form>`;
+  $("#overlay").classList.add("show");
+  $("#editCancel").onclick=hideModal;
+  $("#editForm").onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData($("#editForm")).entries());
+    if(!(+d.amount>0)){toast("Enter an amount greater than zero");return;}
+    try{await api('PUT','/api/entries/'+id,d);await loadEntries();hideModal();render();toast("Entry updated");}catch(er){toast(er.message);}};
+}
+function hideModal(){$("#overlay").classList.remove("show");$("#modal").innerHTML="";}
+function showModal(html){$("#modal").innerHTML=html;$("#overlay").classList.add("show");}
+
+/* ---------- bulk import (Excel/CSV) ---------- */
+const HEADER_MAP={
+  date:["date","entry date","exp date","expense date"],
+  franchise:["franchise","franchise name","branch","unit","outlet"],
+  state:["state","region"],
+  category:["category","cat","expense category","expense type","head"],
+  amount:["amount","amount (₹)","amount(rs)","amt","value","spend","expense"],
+  invoice:["invoice","invoice no","invoice no.","invoice number","bill no","bill no."],
+  bill:["bill","bill attached","bill?"],
+  desc:["description","desc","particulars","narration","details"],
+  remarks:["remarks","remark","notes","note","comment"]
+};
+function canonHeader(h){const k=String(h||"").trim().toLowerCase();for(const f in HEADER_MAP)if(HEADER_MAP[f].includes(k))return f;return null;}
+const pad=n=>String(n).padStart(2,"0");
+function fmtDate(y,m,d){if(!(y>=1900&&m>=1&&m<=12&&d>=1&&d<=31))return"";return `${y}-${pad(m)}-${pad(d)}`;}
+function parseDate(v){
+  if(v==null||v==="")return"";
+  if(v instanceof Date&&!isNaN(v))return fmtDate(v.getFullYear(),v.getMonth()+1,v.getDate());
+  const s=String(v).trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return fmtDate(+m[1],+m[2],+m[3]);
+  m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(m){let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;return fmtDate(y,b,a);} // day-first
+  const d=new Date(s);if(!isNaN(d))return fmtDate(d.getFullYear(),d.getMonth()+1,d.getDate());
+  return"";
+}
+const parseAmount=v=>{if(v==null)return NaN;const n=Number(String(v).replace(/[₹,\s]/g,""));return isFinite(n)?n:NaN;};
+const normBill=v=>{const s=String(v||"").trim().toLowerCase();if(!s)return"Yes";return /^(n|no|false|0)/.test(s)?"No":"Yes";};
+function parseCSV(text){const rows=[];let row=[],cur="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else{if(c==='"')q=true;else if(c===","){row.push(cur);cur="";}
+      else if(c==="\n"){row.push(cur);rows.push(row);row=[];cur="";}else if(c==="\r"){}else cur+=c;}}
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}return rows;}
+
+function handleImportFile(ev){
+  const file=ev.target.files[0];ev.target.value="";if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{try{
+    let aoa;const name=file.name.toLowerCase();
+    if(name.endsWith(".csv")){aoa=parseCSV(String(e.target.result));}
+    else{if(typeof XLSX==="undefined"){toast("Excel reader didn't load — use a CSV file");return;}
+      const wb=XLSX.read(e.target.result,{type:"array",cellDates:true});
+      aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""});}
+    buildPreview(aoa);
+  }catch(err){toast("Couldn't read that file");console.error(err);}};
+  if(file.name.toLowerCase().endsWith(".csv"))reader.readAsText(file);else reader.readAsArrayBuffer(file);
+}
+
+function buildPreview(aoa){
+  aoa=(aoa||[]).filter(r=>r&&r.some(c=>String(c).trim()!==""));
+  if(aoa.length<2){toast("File has no data rows");return;}
+  const headers=aoa[0].map(canonHeader);
+  if(!headers.includes("franchise")||!headers.includes("amount")){toast("File needs at least Franchise and Amount columns");return;}
+  const col=f=>headers.indexOf(f);
+  const frLower=new Map(config.franchises.map(f=>[f.name.toLowerCase(),f.name]));
+  const catLower=new Map(config.categories.map(c=>[c.name.toLowerCase(),c.name]));
+  const newFr=new Map(),newCat=new Map(),valid=[],skipped=[];
+  for(let i=1;i<aoa.length;i++){const r=aoa[i],g=f=>{const j=col(f);return j>=0?r[j]:"";};
+    const fname=String(g("franchise")).trim(),amt=parseAmount(g("amount")),date=parseDate(g("date"));
+    if(!fname){skipped.push(`Row ${i+1}: no franchise`);continue;}
+    if(!(amt>0)){skipped.push(`Row ${i+1}: amount not valid`);continue;}
+    if(!date){skipped.push(`Row ${i+1}: date missing/unreadable`);continue;}
+    let canonFr=frLower.get(fname.toLowerCase());
+    if(!canonFr){canonFr=fname;if(!newFr.has(fname.toLowerCase()))newFr.set(fname.toLowerCase(),{name:fname,state:String(g("state")).trim()});}
+    let cat=String(g("category")).trim();let canonCat=cat?catLower.get(cat.toLowerCase()):"Miscellaneous";
+    if(cat&&!canonCat){canonCat=cat;if(!newCat.has(cat.toLowerCase()))newCat.set(cat.toLowerCase(),cat);}
+    if(!canonCat)canonCat="Miscellaneous";
+    if(canonCat==="Miscellaneous"&&!catLower.has("miscellaneous")&&!newCat.has("miscellaneous"))newCat.set("miscellaneous","Miscellaneous");
+    valid.push({date,franchise:canonFr,cat:canonCat,desc:String(g("desc")).trim(),amount:amt,invoice:String(g("invoice")).trim(),bill:normBill(g("bill")),remarks:String(g("remarks")).trim()});
+  }
+  const nf=[...newFr.values()],nc=[...newCat.values()];
+  if(!valid.length){showModal(`<h3>Nothing to import</h3><p>No valid rows. Skipped ${skipped.length}.</p><div class="modal-actions"><button class="btn go" id="impClose">Close</button></div>`);$("#impClose").onclick=hideModal;return;}
+  showModal(`<h3>Import preview</h3>
+    <div class="imp-stat">
+      <div class="b imp-ok"><div class="n">${valid.length}</div><div class="l">ready</div></div>
+      <div class="b imp-warn"><div class="n">${nf.length}</div><div class="l">new franchises</div></div>
+      <div class="b imp-warn"><div class="n">${nc.length}</div><div class="l">new categories</div></div>
+      <div class="b"><div class="n">${skipped.length}</div><div class="l">skipped</div></div>
+    </div>
+    ${nf.length?`<div style="font-size:12px;font-weight:700;color:var(--muted)">New franchises (auto-added):</div><div class="imp-list">${nf.map(f=>`${esc(f.name)} — ${f.state?esc(f.state):'<i>no state</i>'}`).join("<br>")}</div>`:""}
+    ${nc.length?`<div style="font-size:12px;font-weight:700;color:var(--muted)">New categories:</div><div class="imp-list">${nc.map(esc).join("<br>")}</div>`:""}
+    ${skipped.length?`<div style="font-size:12px;font-weight:700;color:var(--muted)">Skipped:</div><div class="imp-list">${skipped.slice(0,8).join("<br>")}${skipped.length>8?`<br>…and ${skipped.length-8} more`:""}</div>`:""}
+    <div class="modal-actions">
+      <button class="btn ghost" id="impCancel">Cancel</button>
+      <button class="btn ghost" id="impReplace">Replace all</button>
+      <button class="btn go" id="impAppend">Append (${valid.length})</button>
+    </div>`);
+  const commit=async(mode,adminPassword)=>{
+    try{const body={mode,newFranchises:nf,newCategories:nc,entries:valid};if(adminPassword)body.adminPassword=adminPassword;
+      const r=await api('POST','/api/import',body);
+      await loadConfig();await loadEntries();hideModal();tab="dash";render();toast(`Imported ${r.inserted} entries`);}
+    catch(e){toast(e.message);}
+  };
+  $("#impCancel").onclick=hideModal;
+  $("#impAppend").onclick=()=>commit('append');
+  $("#impReplace").onclick=async()=>{const r=await replaceConfirm();if(r)commit('replace',r.pw);};
+}
+
+function replaceConfirm(){return new Promise(res=>{
+  showModal(`<h3>Replace ALL entries?</h3>
+    <p>This deletes every existing entry and keeps only this file. It cannot be undone — export a backup first if unsure.</p>
+    <div class="field"><label>Type REPLACE to confirm</label><input id="rcWord" placeholder="REPLACE" autocomplete="off"></div>
+    <div class="field" style="margin-top:10px"><label>Admin password (only if your team set one)</label><input id="rcPw" type="password" placeholder="leave blank if none"></div>
+    <div class="modal-actions"><button class="btn ghost" id="rcCancel">Cancel</button><button class="btn go" id="rcGo" disabled>Replace all</button></div>`);
+  const word=$("#rcWord"),go=$("#rcGo");
+  word.oninput=()=>{go.disabled=word.value.trim().toUpperCase()!=="REPLACE";};
+  word.focus();
+  $("#rcCancel").onclick=()=>{hideModal();res(null);};
+  go.onclick=()=>{const pw=$("#rcPw").value;hideModal();res({pw});};
+});}
+
+function downloadTemplate(){
+  const headers=["Date","Franchise","State","Category","Amount","Invoice","Bill","Remarks"];
+  const ex=[["2026-06-02","Tirupathi","AP","Launch Event",150000,"INV-201","Yes",""],
+    ["2026-06-03","Salem","TN","Branding & Signage",40000,"INV-202","Yes",""],
+    ["2026-06-04","Nagpur","MH","Advertising & Marketing",90000,"INV-203","No","bill pending"]];
+  if(typeof XLSX==="undefined"){const csv=[headers.join(","),...ex.map(r=>r.join(","))].join("\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="franchise_import_template.csv";a.click();return;}
+  const ws=XLSX.utils.aoa_to_sheet([headers,...ex]);ws["!cols"]=[{wch:12},{wch:16},{wch:8},{wch:22},{wch:12},{wch:12},{wch:8},{wch:20}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Expenses");XLSX.writeFile(wb,"franchise_import_template.xlsx");
+}
+
+
+/* ---------- toast + confirm ---------- */
+let toastT;function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2400);}
+function ask(msg){return new Promise(res=>{
+  $("#modal").innerHTML=`<p>${esc(msg)}</p><div class="modal-actions"><button class="btn ghost" id="mNo">Cancel</button><button class="btn go" id="mYes">Confirm</button></div>`;
+  $("#overlay").classList.add("show");
+  const done=v=>{hideModal();res(v);};
+  $("#mYes").onclick=()=>done(true);$("#mNo").onclick=()=>done(false);});}
+</script>
+</body>
+</html>
