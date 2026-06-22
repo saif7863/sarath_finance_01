@@ -282,7 +282,7 @@ function fwView(){
   config.franchises.filter(f=>!q||f.name.toLowerCase().includes(q)||f.state.toLowerCase().includes(q)).forEach((f,i)=>{
     const sp=frSpent(f.id);tSpent+=sp;const fl=flagOf(sp,config.warning,config.limit);
     rows+=`<tr><td class="num">${i+1}</td><td>${esc(f.name)}</td><td><span class="pill">${f.state}</span></td><td class="r num">${INR(sp)}</td><td class="r num">${INR(config.limit)}</td><td class="r num">${config.limit?(sp/config.limit*100).toFixed(0):0}%</td><td><span class="chip ${fl}">${flagWord[fl]}</span></td></tr>`;});
-  if(!rows)rows=`<tr><td colspan="7" class="empty">No franchises match “${esc(fwSearch)}”.</td></tr>`;
+  if(!rows)rows=`<tr><td colspan="7" class="empty">No franchises match "${esc(fwSearch)}".</td></tr>`;
   const totBud=config.franchises.length*config.limit;
   return `<h1 class="h1">Franchise-wise</h1><p class="sub">Spend and budget status for each franchise.</p>
   <div class="toolbar"><input class="grow" id="fwSearch" placeholder="Search franchise or state" value="${esc(fwSearch)}"></div>
@@ -354,7 +354,7 @@ function bind(){
   if(tab==="fw")keepFocus("#fwSearch",v=>{fwSearch=v;});
   if(tab==="masters"){
     $("#saveBudget").onclick=async()=>{const g=id=>+document.querySelector(`#budget [name=${id}]`).value||0;
-      try{await api('PUT','/api/settings',{fee:g('fee'),limit:g('limit'),warning:g('warning')});await loadConfig();render();toast("Budget saved");}catch(e){toast(e.message);}};
+      try{await api('PUT','/api/settings',{fee:g('fee'),budget_limit:g('limit'),warning:g('warning')});await loadConfig();render();toast("Budget saved");}catch(e){toast(e.message);}};
     // categories
     document.querySelectorAll("[data-cat]").forEach(row=>{const id=+row.dataset.cat,inp=row.querySelector("input");
       inp.onchange=async()=>{const orig=inp.dataset.corig,v=inp.value.trim();if(v===orig)return;if(!v){inp.value=orig;toast("Name can't be empty");return;}
@@ -363,9 +363,25 @@ function bind(){
       try{await api('DELETE','/api/categories/'+b.dataset.delcat);await loadConfig();render();toast("Category removed");}catch(e){toast(e.message);}});
     $("#addCatM").onclick=async()=>{const v=$("#newCatM").value.trim();if(!v){toast("Type a category name");return;}
       try{await api('POST','/api/categories',{name:v});await loadConfig();render();toast("Category added");}catch(e){toast(e.message);}};
-    // franchises
-    $("#addFr").onclick=async()=>{let n="New franchise",k=2;while(config.franchises.some(f=>f.name.toLowerCase()===n.toLowerCase()))n="New franchise "+(k++);
-      try{await api('POST','/api/franchises',{name:n,state:STATE_ORDER[0]});await loadConfig();render();}catch(e){toast(e.message);}};
+    // FRANCHISES - WITH PROPER BUTTON HANDLER
+    const addFrBtn=$("#addFr");
+    if(addFrBtn){
+      addFrBtn.onclick=async()=>{
+        try{
+          let n="New franchise",k=2;
+          while(config.franchises.some(f=>f.name.toLowerCase()===n.toLowerCase()))n="New franchise "+(k++);
+          console.log("Adding franchise:",{name:n,state:STATE_ORDER[0]||"TN"});
+          const r=await api('POST','/api/franchises',{name:n,state:STATE_ORDER[0]||"TN"});
+          console.log("Added franchise response:",r);
+          await loadConfig();
+          render();
+          toast("Franchise added ✓");
+        }catch(e){
+          console.error("Add franchise error:",e);
+          toast("Error: "+e.message);
+        }
+      };
+    }
     document.querySelectorAll("[data-delfr]").forEach(b=>b.onclick=async()=>{
       try{await api('DELETE','/api/franchises/'+b.dataset.delfr);await loadConfig();render();toast("Franchise removed");}catch(e){toast(e.message);}});
     document.querySelectorAll("[data-fr]").forEach(row=>{const id=+row.dataset.fr,nm=row.querySelector('[data-k="name"]'),st=row.querySelector('[data-k="state"]');
@@ -522,7 +538,6 @@ function downloadTemplate(){
   const ws=XLSX.utils.aoa_to_sheet([headers,...ex]);ws["!cols"]=[{wch:12},{wch:16},{wch:8},{wch:22},{wch:12},{wch:12},{wch:8},{wch:20}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Expenses");XLSX.writeFile(wb,"franchise_import_template.xlsx");
 }
-
 
 /* ---------- toast + confirm ---------- */
 let toastT;function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2400);}
