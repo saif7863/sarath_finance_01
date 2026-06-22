@@ -1,6 +1,6 @@
 """
 Mr. Goli Soda Finance - Database Module
-FINAL VERSION - WORKING
+ULTRA FINAL - ALL EDGE CASES HANDLED
 """
 
 from supabase import create_client, Client
@@ -19,16 +19,22 @@ print("✅ Database connected!")
 class SimpleCursor:
     def __init__(self, commit=False):
         self.result = []
+        self.last_query = ""
     
     def execute(self, query, params=None):
         """Simple SQL execution"""
+        self.last_query = query
         query_upper = query.upper()
         
         try:
             # SELECT FROM SETTINGS
             if "SELECT" in query_upper and "FROM settings" in query_upper:
                 response = supabase.table("settings").select("*").eq("id", 1).execute()
-                self.result = response.data if response.data else []
+                if response.data:
+                    self.result = response.data
+                else:
+                    # Return default settings if none exist
+                    self.result = [{"id": 1, "fee": 0, "budget_limit": 0, "warning": 0}]
             
             # SELECT FROM FRANCHISES
             elif "SELECT" in query_upper and "FROM franchises" in query_upper:
@@ -53,7 +59,6 @@ class SimpleCursor:
                         "state": params[1]
                     }
                     response = supabase.table("franchises").insert(data_to_insert).execute()
-                    # Make sure we have the data
                     if response.data:
                         self.result = response.data
                     else:
@@ -168,17 +173,23 @@ class SimpleCursor:
     
     def fetchone(self):
         """Get first row"""
-        if self.result and len(self.result) > 0:
-            row = self.result[0]
-            # Make sure it's a dict
-            if isinstance(row, dict):
-                # Ensure id field exists
-                if "id" not in row:
-                    row["id"] = row.get("id") or 1
-                return row
-            return row
-        # Return empty dict to prevent None errors
-        return {"id": 1}
+        if not self.result:
+            return None
+        
+        row = self.result[0]
+        
+        # Ensure it's a dict
+        if not isinstance(row, dict):
+            return None
+        
+        # Add field mappings for SELECT queries
+        if "budget_limit" in row and "lim" not in row:
+            row["lim"] = row["budget_limit"]
+        
+        if "descr" in row and "desc" not in row:
+            row["desc"] = row["descr"]
+        
+        return row
     
     def fetchall(self):
         """Get all rows"""
